@@ -1,17 +1,5 @@
 // const express = require('express');
 // const router = express.Router();
-// const jwt = require('jsonwebtoken');
-// const createConnection = require('../db');
-// const secretKey = 'suhani123';
-
-// router.post('/api/token', (req, res) => {
-//   const { shop } = req.body;
-//   const payload = {
-//     shop: shop
-//   };
-//   const token = jwt.sign(payload, secretKey, { expiresIn: '1h' })
-//   res.status(200).json({ token })
-// })
 
 // async function verifyJwt(req, res, next) {
 //     const token = req.headers.authorization;
@@ -22,7 +10,6 @@
 //       const decoded = jwt.verify(token, secretKey);
 //       const shop = decoded.shop;
 //       console.log("jwt verified", decoded);
-//       const connection = await createConnection();
 //       console.log('Database connection established');
   
 //       const query = `SELECT accessToken,id from store where name='${shop}'`;
@@ -37,5 +24,7 @@
 //       return res.status(403).json({ message: 'Invalid token', error: err.message });
 //     }
 //   }
-// module.exports.verifyJwt = verifyJwt;
-// module.exports = router;
+//   module.exports = {
+//     verifyJwt,
+//     router
+//   };

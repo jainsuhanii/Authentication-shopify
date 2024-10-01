@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const createConnection = require('../db');
-
 const jwt = require('jsonwebtoken');
 const secretKey= "suhani123";
 

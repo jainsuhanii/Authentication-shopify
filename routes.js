@@ -1,4 +1,3 @@
-// main file
 const express = require('express');
 const router = express();
 const addressRoutes = require('./addressRoutes');
