@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const createConnection = require('../db');
 const jwt = require('jsonwebtoken');
 const secretKey= "suhani123";
 
-router.post('/api/token', (req, res) => {
+router.post('/api/token', (req, res,next) => {
   const { shop } = req.body;
   const payload = {
     shop: shop
@@ -22,22 +21,18 @@ async function verifyJwt(req, res, next) {
     const decoded = jwt.verify(token, secretKey);
     const shop = decoded.shop;
     console.log("jwt verified", decoded);
-    const connection = await createConnection();
-    console.log('Database connection established');
-
-    const query = `SELECT accessToken,id from store where name='${shop}'`;
-    let [result] = await connection.query(query);
+    const query = 'SELECT accessToken,id from store where name=?';
+    let [result] = await global.connection.query(query, [shop]);
     if (!result?.length) throw new Error('No store found with the provided name');
 
     req.result = result[0];
-    if (!result) throw new Error('No store found with the provided name');
-    req.shop = { ...result[0],shop };
+    req.shop = { ...result[0], shop };
     next();
   } catch (err) {
     console.error('JWT verification error:', err.message);
     return res.status(403).json({ message: 'Invalid token', error: err.message });
   }
- }
+}
 
 
 router.post('/customers', verifyJwt, async (req, res) => {
@@ -80,9 +75,6 @@ router.post('/customers', verifyJwt, async (req, res) => {
       store_id: id,
     };
 
-    const connection = await createConnection();
-    console.log('Database connection established');
-
     const query = `
           INSERT INTO customers (customer_id, first_name, last_name, email, phone, store_id)
           VALUES (?, ?, ?, ?, ?,?)
@@ -90,7 +82,7 @@ router.post('/customers', verifyJwt, async (req, res) => {
     const values = [shopifyCustomer.id, customer.first_name, customer.last_name, customer.email, customer.phone,id];
 
     try {
-      const [result] = await connection.query(query, values);
+      const [result] = await global.connection.query(query, values);
       return res.status(200).json({
         message: 'Customer created and saved to database successfully',
         customer,
@@ -142,11 +134,8 @@ router.put('/customers/:id', verifyJwt, async (req, res) => {
 
     console.log(query);
 
-    try {
-      const connection = await createConnection();
-      console.log('Database connection established');
-      
-      const [result] = await connection.query(query);
+    try {    
+      const [result] = await global.connection.query(query);
       return res.status(200).json({
         message: 'Customer updated successfully',
         customer: {

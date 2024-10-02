@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const createConnection = require('../db');
 const {verifyJwt}=require("../models/customer");
 const customerRouter=require("../models/customer");
 router.use('/customers',customerRouter);
@@ -60,9 +59,7 @@ router.post('/address', verifyJwt, async (req, res) => {
             };
             console.log('Address:', address);
 
-            let connection;
             try {
-                connection = await createConnection();  
                 const query = `INSERT INTO addresses (line1, line2, city, state, zip, country, customer_id, address_id)
                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
                 const values = [
@@ -75,7 +72,7 @@ router.post('/address', verifyJwt, async (req, res) => {
                     customer_id,
                     shopifyAddress.id 
                 ];
-                await connection.query(query, values);
+                await global.connection.query(query, values);
                 console.log('Address saved to database successfully.');
             } catch (dbError) {
                 console.error('Error saving address to the database:', dbError);
@@ -104,7 +101,7 @@ router.put('/address/:id', verifyJwt, async (req, res) => {
     const { id: address_id } = req.params;
     const { accessToken, shop } = req.shop;
     console.log(accessToken);
-    // const result=req.result;
+
     const { line1, line2, city, state, zip, country, customer_id } = req.body.address;
 
     const addressData = {
@@ -149,11 +146,7 @@ router.put('/address/:id', verifyJwt, async (req, res) => {
             };
 
             console.log('Address:', address);
-
-            let connection;
             try {
-                connection = await createConnection();
-
                 const query = `
                     UPDATE addresses
                     SET line1 = ?, line2 = ?, city = ?, state = ?, zip = ?, country = ?
@@ -169,7 +162,7 @@ router.put('/address/:id', verifyJwt, async (req, res) => {
                     address_id
                 ];
 
-                await connection.query(query, values);
+                await global.connection.query(query, values);
                 console.log('Address updated in database successfully.');
                 return res.status(200).json({
                     message: 'Address updated successfully',
@@ -189,7 +182,4 @@ router.put('/address/:id', verifyJwt, async (req, res) => {
         return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 });
-
-
-
 module.exports = router;
