@@ -1,10 +1,10 @@
 {
   "name": "shopify-integration",
   "version": "1.0.0",
-  "main": "api.js",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon api.js"
+    "start": "nodemon server.js"
   },
   "keywords": [],
   "author": "",

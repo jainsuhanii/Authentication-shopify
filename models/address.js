@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const {verifyJwt}=require("../models/customer");
+const {verifyJwt}=require("../middlewares/auth");
 const customerRouter=require("../models/customer");
 router.use('/customers',customerRouter);
 

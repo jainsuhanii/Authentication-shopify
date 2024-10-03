@@ -1,6 +1,6 @@
 const customer = require('./models/customer');
 const address = require('./models/address');
-const startApp = require ('./db');
+const startApp = require ('./database/db');
 const express = require('express');
 
 const axios = require('axios');
@@ -11,13 +11,10 @@ port = 3000;
 const app = express();
 app.use(express.json());
 
-
-
 const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URL, SCOPES } = process.env;
 function getShopData(requestedShop) {
     return requestedShop;
   }
-  
   module.exports = getShopData;
 
 app.get('/install', (req, res) => {

@@ -1,8 +1,9 @@
 const express = require('express');
-const router = express();
+const router = express.Router();
 const addressRoutes = require('./addressRoutes');
 const customerRouter=require("../models/customer");
 const { verifyJwt } = require('./models/customer');
+// const { createCustomer } = require('./models/customer');
 
 router.use('/address',verifyJwt, addressRoutes);
 router.use('/customers',verifyJwt, customerRouter);

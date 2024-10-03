@@ -3,7 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const secretKey= "suhani123";
-
+const {verifyJwt}=require("../middlewares/auth");
 router.post('/api/token', (req, res,next) => {
   const { shop } = req.body;
   const payload = {
@@ -12,30 +12,8 @@ router.post('/api/token', (req, res,next) => {
   const token = jwt.sign(payload, secretKey, { expiresIn: '1h' })
   res.status(200).json({ token })
 })
-async function verifyJwt(req, res, next) {
-  const token = req.headers.authorization;
-  if (!token) {
-    return res.status(401).json({ message: 'JWT token is required' });
-  }
-  try {
-    const decoded = jwt.verify(token, secretKey);
-    const shop = decoded.shop;
-    console.log("jwt verified", decoded);
-    const query = 'SELECT accessToken,id from store where name=?';
-    let [result] = await global.connection.query(query, [shop]);
-    if (!result?.length) throw new Error('No store found with the provided name');
 
-    req.result = result[0];
-    req.shop = { ...result[0], shop };
-    next();
-  } catch (err) {
-    console.error('JWT verification error:', err.message);
-    return res.status(403).json({ message: 'Invalid token', error: err.message });
-  }
-}
-
-
-router.post('/customers', verifyJwt, async (req, res) => {
+router.post('/customers',verifyJwt, async (req, res) => {
   const { id, accessToken,shop } = req.shop;
   const { first_name, last_name, email, phone } = req.body.customer;
   console.log(id,accessToken,shop);
@@ -96,7 +74,6 @@ router.post('/customers', verifyJwt, async (req, res) => {
     return res.status(400).json({ message: 'Failed to create customer in Shopifyy' });
   }
 });
-///////////////
 
 
 router.put('/customers/:id', verifyJwt, async (req, res) => {
@@ -156,4 +133,4 @@ router.put('/customers/:id', verifyJwt, async (req, res) => {
 });
 
 module.exports = router;
-module.exports.verifyJwt = verifyJwt;
+// module.exports.verifyJwt = verifyJwt;
