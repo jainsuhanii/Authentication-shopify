@@ -2,14 +2,17 @@ const customer = require('./models/customer');
 const address = require('./models/address');
 const startApp = require ('./database/db');
 const express = require('express');
+const app = express();
+app.use(express.json());
+const routes = require('./routes');
+app.use(routes);
 
 const axios = require('axios');
 require('dotenv').config();
 const crypto = require('crypto');
 const router = require('./models/customer');  
 port = 3000;
-const app = express();
-app.use(express.json());
+
 
 const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URL, SCOPES } = process.env;
 function getShopData(requestedShop) {

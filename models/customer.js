@@ -13,7 +13,7 @@ router.post('/api/token', (req, res,next) => {
   res.status(200).json({ token })
 })
 
-router.post('/customers',verifyJwt, async (req, res) => {
+const createCustomer= async (req, res) => {
   const { id, accessToken,shop } = req.shop;
   const { first_name, last_name, email, phone } = req.body.customer;
   console.log(id,accessToken,shop);
@@ -73,10 +73,10 @@ router.post('/customers',verifyJwt, async (req, res) => {
   } else {
     return res.status(400).json({ message: 'Failed to create customer in Shopifyy' });
   }
-});
+};
 
 
-router.put('/customers/:id', verifyJwt, async (req, res) => {
+const updateCustomer= async (req, res) => {
   const { id:customer_id } = req.params; 
   const { accessToken, shop } = req.shop; 
   const { first_name, last_name, email, phone } = req.body.customer; 
@@ -130,7 +130,8 @@ router.put('/customers/:id', verifyJwt, async (req, res) => {
   } else {
     return res.status(400).json({ message: 'Failed' });
   }
-});
+};
 
 module.exports = router;
-// module.exports.verifyJwt = verifyJwt;
+module.exports.createCustomer=createCustomer;
+module.exports.updateCustomer=updateCustomer;

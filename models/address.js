@@ -1,21 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const {verifyJwt}=require("../middlewares/auth");
 const customerRouter=require("../models/customer");
 router.use('/customers',customerRouter);
 
-router.post('/address', verifyJwt, async (req, res) => {
+const createAddress= async (req, res) => {
     const {accessToken, shop } = req.shop;
     console.log(accessToken);
     const { line1, line2, city, state, zip, customer_id, country } = req.body.address;
     if (!customer_id) {
         return res.status(400).json({ message: 'Customer ID is required' });
     }
-    if (!country) {
-        return res.status(400).json({ message: 'Country is required' });
-    }
-
+    
     const addressData = {
         address: {
             address1: line1,
@@ -95,25 +91,46 @@ router.post('/address', verifyJwt, async (req, res) => {
         console.error('Error processing Shopify response:', error.message);
         return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
-});
+};
 
-router.put('/address/:id', verifyJwt, async (req, res) => {
+const updateAddress = async (req, res) => {
     const { id: address_id } = req.params;
     const { accessToken, shop } = req.shop;
-    console.log(accessToken);
-
     const { line1, line2, city, state, zip, country, customer_id } = req.body.address;
 
+    // Get the existing address
+    let existingAddress;
+try {
+    const response = await axios.get(
+        `https://${shop}/admin/api/2024-07/customers/${customer_id}/addresses/${address_id}.json`,
+        { headers: { 'X-Shopify-Access-Token': accessToken } }
+    );
+    if (!response.data || !response.data.customer_address) {
+        console.log('No address data in response:', response.data);
+        return res.status(500).json({ message: 'No address data in Shopify response' });
+    }
+    existingAddress = response.data.customer_address;
+} catch (error) {
+    console.error('Error getting existing address from Shopify:', error.response?.data || error.message);
+    return res.status(500).json({
+        message: 'Failed to get existing address from Shopify',
+        error: error.response?.data || error.message
+    });
+}
+
+    // Update the specific parameter of the address
+    existingAddress.city = city;
+    existingAddress.province = state;
+    existingAddress.address1 = line1;
+    existingAddress.address2 = line2;
+    existingAddress.zip = zip;
+    existingAddress.country = country;
+
+    // Send the entire updated address in the request body
     const addressData = {
-        address: {
-            address1: line1,
-            address2: line2,
-            city,
-            province: state,
-            zip,
-            country,
-        }
+        address: existingAddress
     };
+    console.log('Address Data:', addressData);
 
     let response;
     try {
@@ -181,5 +198,8 @@ router.put('/address/:id', verifyJwt, async (req, res) => {
         console.error('Error processing Shopify response:', error.message);
         return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
-});
+};
 module.exports = router;
+module.exports.createAddress = createAddress;
+module.exports.updateAddress = updateAddress;
+
