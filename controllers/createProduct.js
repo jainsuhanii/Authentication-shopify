@@ -1,4 +1,3 @@
-
 const axios = require('axios');
 
 const generateVariantsFromOptions = (options) => {
@@ -38,14 +37,12 @@ const createProduct = async (req, res) => {
   console.log("Request body:", req.body); 
   const store_domain = req.shop.shop;
 
-  
   if (!options.length) {
     return res.status(400).json({
       message: "At least one option is required.",
     });
   }
 
- 
   const generatedVariants = variants.length ? variants : generateVariantsFromOptions(options);
 
   try {
@@ -104,8 +101,6 @@ const createProduct = async (req, res) => {
 
     const shopifyProduct = shopifyResponse.data.product;
 
-
-
     const insertProductQuery = `
       INSERT INTO products (shopify_product_id, title, vendor, product_type, tags, status)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -121,7 +116,9 @@ const createProduct = async (req, res) => {
     ]);
 
     const productId = insertProductResult.insertId; 
+    console.log("Inserted Product ID:", productId); 
 
+    // Insert variants
     const insertVariantQuery = `
       INSERT INTO product_variants (product_id, title, price, sku, inventory_quantity, option1, option2, option3)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -140,35 +137,36 @@ const createProduct = async (req, res) => {
       ]);
     }
 
+    
     const insertOptionQuery = `
-  INSERT INTO product_options (product_id, name, position, \`values\`)
-  VALUES (?, ?, ?, ?)
-`;
+      INSERT INTO product_options (product_id, name, position, \`values\`)
+      VALUES (?, ?, ?, ?)
+    `;
 
-for (const option of shopifyProduct.options) {
-  const valuesJson = JSON.stringify(option.values);
-  console.log("Values JSON:", valuesJson); // Debugging line
-  await global.connection.query(insertOptionQuery, [
-    productId,
-    option.name,
-    option.position,
-    valuesJson,
-  ]);
-}
+    for (const option of shopifyProduct.options) {
+      const valuesJson = JSON.stringify(option.values);
+      console.log("Values JSON:", valuesJson); 
+      await global.connection.query(insertOptionQuery, [
+        productId, 
+        option.name,
+        option.position,
+        valuesJson,
+      ]);
+    }
 
-const insertImageQuery = `
-  INSERT INTO product_images (product_id, src, alt, position)
-  VALUES (?, ?, ?, ?)
-`;
+    const insertImageQuery = `
+      INSERT INTO product_images (product_id, src, alt, position)
+      VALUES (?, ?, ?, ?)
+    `;
 
-for (const image of shopifyProduct.images) {
-  await global.connection.query(insertImageQuery, [
-    productId,
-    image.src,
-    image.alt,
-    image.position,
-  ]);
-}
+    for (const image of shopifyProduct.images) {
+      await global.connection.query(insertImageQuery, [
+        productId,
+        image.src,
+        image.alt,
+        image.position,
+      ]);
+    }
 
     console.log("Product and related data inserted into the database successfully.");
 
@@ -190,4 +188,4 @@ for (const image of shopifyProduct.images) {
   }
 };
 
-module.exports.createProduct=createProduct;
+module.exports.createProduct = createProduct;

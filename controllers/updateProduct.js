@@ -1,47 +1,105 @@
-const axios = require("axios");
+const axios = require('axios');
 
-  const updateProduct = async (req, res) => {
-    const { id, title, body_html, vendor, product_type, tags, status,variants=[],options=[],images=[] } = req.body;
-    const store_domain = req.shop.shop;
-    const productId = req.params.productId;
-  
-    try {
-      const storeQuery = `SELECT * FROM store WHERE name = ?`;
-      const [storeResult] = await global.connection.query(storeQuery, [store_domain]);
-  
-      if (storeResult.length === 0) {
-        return res.status(404).json({ message: "Store not found." });
-      }
-  
-      const store = storeResult[0];
-      const shopifyAccessToken = store.accessToken;
-  
-      const productPayload = {
-        product: {
-          id: productId, 
-          title,
-          body_html,
-          vendor,
-          product_type,
-          tags,
-          status,
-          variants: variants.length > 0 ? variants : undefined, 
-        options: options.length > 0 ? options : undefined,
-          images: images.length > 0 ? images : undefined,
+const generateVariantsFromOptions = (options) => {
+  const optionValues = options.map(option => option.values);
+  const combinations = optionValues.reduce((acc, curr) => {
+    const newCombinations = [];
+    acc.forEach(a => {
+      curr.forEach(b => {
+        newCombinations.push([...a, b]);
+      });
+    });
+    return newCombinations;
+  }, [[]]);
+
+  return combinations.map(combination => {
+    const variant = {};
+    combination.forEach((value, index) => {
+      variant[`option${index + 1}`] = value; 
+    });
+    return variant;
+  });
+};
+
+const updateProduct = async (req, res) => {
+  const {
+    title,
+    body_html,
+    vendor,
+    product_type,
+    tags,
+    variants = [],
+    images = [],
+    options = [],
+    status,
+  } = req.body;
+
+  const store_domain = req.shop.shop;
+  const productId = req.params.productId; 
+  if (!options.length) {
+    return res.status(400).json({
+      message: "At least one option is required.",
+    });
+  }
+
+  const generatedVariants = variants.length ? variants : generateVariantsFromOptions(options);
+
+  try {
+    const storeQuery = `SELECT * FROM store WHERE name = ?`;
+    const [storeResult] = await global.connection.query(storeQuery, [store_domain]);
+
+    if (storeResult.length === 0) {
+      return res.status(404).json({ message: "Store not found." });
+    }
+
+    const store = storeResult[0];
+    const shopifyAccessToken = store.accessToken;
+
+    const productPayload = {
+      product: {
+        id: productId,
+        title,
+        body_html,
+        vendor,
+        product_type,
+        tags,
+        options: options.map(option => ({
+          name: option.name,
+          position: option.position,
+          values: option.values || [], 
+        })),
+        variants: generatedVariants.map((variant, index) => {
+          const variantTitle = variant.title || `Variant ${index + 1}`;
+          return {
+            title: variantTitle,
+            price: variant.price,
+            sku: variant.sku,
+            inventory_quantity: variant.inventory_quantity,
+            ...variant
+          };
+        }),
+        images: images.map(image => ({
+          src: image.src,
+          alt: image.alt,
+          position: image.position,
+        })),
+        status,
+      },
+    };
+
+    console.log("Product Payload:", JSON.stringify(productPayload, null, 2));
+
+    const shopifyResponse = await axios.put(
+      `https://${store_domain}/admin/api/2024-01/products/${productId}.json`,
+      productPayload,
+      {
+        headers: {
+          "X-Shopify-Access-Token": shopifyAccessToken,
         },
-      };
-  
-      const shopifyResponse = await axios.put(
-        `https://${store_domain}/admin/api/2024-01/products/${productId}.json`,
-        productPayload,
-        {
-          headers: {
-            "X-Shopify-Access-Token": shopifyAccessToken,
-          },
-        }
-      );
+      }
+    );
 
-    const updatedProduct = shopifyResponse.data.product;
+    const shopifyProduct = shopifyResponse.data.product;
 
     const updateProductQuery = `
       UPDATE products 
@@ -50,29 +108,31 @@ const axios = require("axios");
     `;
 
     await global.connection.query(updateProductQuery, [
-      updatedProduct.title,
-      updatedProduct.vendor,
-      updatedProduct.product_type,
-      updatedProduct.tags,
-      updatedProduct.status,
-      updatedProduct.id,
+      shopifyProduct.title,
+      shopifyProduct.vendor,
+      shopifyProduct.product_type,
+      shopifyProduct.tags,
+      shopifyProduct.status,
+      shopifyProduct.id,
     ]);
+
+    const productIdFromDb = shopifyProduct.id;
 
     const deleteVariantsQuery = `
       DELETE FROM product_variants 
       WHERE product_id = ?
     `;
 
-    await global.connection.query(deleteVariantsQuery, [id]);
+    await global.connection.query(deleteVariantsQuery, [productIdFromDb]);
 
     const insertVariantQuery = `
       INSERT INTO product_variants (product_id, title, price, sku, inventory_quantity, option1, option2, option3)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    for (const variant of updatedProduct.variants) {
+    for (const variant of shopifyProduct.variants) {
       await global.connection.query(insertVariantQuery, [
-        id,
+        productIdFromDb,
         variant.title,
         variant.price,
         variant.sku,
@@ -83,11 +143,55 @@ const axios = require("axios");
       ]);
     }
 
-    console.log("Product updated successfully in the database.");
-    
+    const deleteOptionsQuery = `
+      DELETE FROM product_options 
+      WHERE product_id = ?
+    `;
+
+    await global.connection.query(deleteOptionsQuery, [productIdFromDb]);
+
+    // Insert new options into the product_options table
+    const insertOptionQuery = `
+      INSERT INTO product_options (product_id, name, position, \`values\`)
+      VALUES (?, ?, ?, ?)
+    `;
+
+    for (const option of shopifyProduct.options) {
+      const valuesJson = JSON.stringify(option.values);
+      console.log("Values JSON:", valuesJson); // Debugging line
+      await global.connection.query(insertOptionQuery, [
+        productIdFromDb,
+        option.name,
+        option.position,
+        valuesJson,
+      ]);
+    }
+
+    const deleteImagesQuery = `
+      DELETE FROM product_images 
+      WHERE product_id = ?
+    `;
+    await global.connection.query(deleteImagesQuery, [productIdFromDb]);
+
+    const insertImageQuery = `
+      INSERT INTO product_images (product_id, src, alt, position)
+      VALUES (?, ?, ?, ?)
+    `;
+
+    for (const image of shopifyProduct.images) {
+      await global.connection.query(insertImageQuery, [
+        productIdFromDb,
+        image.src,
+        image.alt,
+        image.position,
+      ]);
+    }
+
+    console.log("Product and related data updated successfully in the database.");
+
     res.status(200).json({
       message: "Product updated successfully!",
-      product: updatedProduct,
+      product: shopifyProduct,
     });
   } catch (error) {
     if (error.response) {
@@ -102,6 +206,5 @@ const axios = require("axios");
     }
   }
 };
-
 
 module.exports.updateProduct = updateProduct;
