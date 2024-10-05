@@ -1,5 +1,5 @@
-const customer = require('./models/customer');
-const address = require('./models/address');
+const customer = require('./controllers/customer');
+const address = require('./controllers/address');
 const startApp = require ('./database/db');
 const express = require('express');
 const app = express();
@@ -10,7 +10,7 @@ app.use(routes);
 const axios = require('axios');
 require('dotenv').config();
 const crypto = require('crypto');
-const router = require('./models/customer');  
+const router = require('./controllers/customer');  
 port = 3000;
 
 

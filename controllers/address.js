@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const customerRouter=require("../models/customer");
+const customerRouter=require("./customer");
 router.use('/customers',customerRouter);
 
 const createAddress= async (req, res) => {

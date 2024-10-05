@@ -3,10 +3,10 @@ const router = express.Router();
 // const addressRoutes = require('./addressRoutes');
 // const customerRouter=require("../models/customer");
 const { verifyJwt } = require('./middlewares/auth');
-const { createCustomer, updateCustomer } = require('./models/customer');
-const { createAddress, updateAddress } = require('./models/address');
-const { createProduct } = require('./models/createProduct');
-const { updateProduct } = require('./models/updateProduct');
+const { createCustomer, updateCustomer } = require('./controllers/customer');
+const { createAddress, updateAddress } = require('./controllers/address');
+const { createProduct } = require('./controllers/createProduct');
+const { updateProduct } = require('./controllers/updateProduct');
 
 router.post('/address',verifyJwt, createAddress );
 router.use('/customers',verifyJwt, createCustomer);
