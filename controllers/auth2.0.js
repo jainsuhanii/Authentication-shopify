@@ -1,94 +1,93 @@
-// const customer = require('./models/customer');
-// const address = require('./models/address');
-// const startApp = require ('./database/db');
-// const express = require('express');
 
-// const axios = require('axios');
-// require('dotenv').config();
-// const crypto = require('crypto');
-// const router = require('./models/customer');  
-// port = 3000;
-// const app = express();
-// app.use(express.json());
+const express = require('express');
+const app = express();
+app.use(express.json());
 
-// const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URL, SCOPES } = process.env;
-// function getShopData(requestedShop) {
-//     return requestedShop;
-//   }
+const axios = require('axios');
+require('dotenv').config();
+const crypto = require('crypto');
+port = 3000;
+
+
+const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URL, SCOPES } = process.env;
+function getShopData(requestedShop) {
+    return requestedShop;
+  }
+  module.exports = getShopData;
+
+const install=async (req, res) => {
+    console.log(req.query); 
+    const requestedShop = req.query.shop;
+    if (!requestedShop) {
+      return res.status(400).send('Missing shop parameter');
+    }
+    const installUrl = `https://${requestedShop}/admin/oauth/authorize?client_id=${CLIENT_ID}&scope=${SCOPES}&redirect_uri=${REDIRECT_URL}`;  
+    res.redirect(installUrl);
+  };
+
+const redirect= async (req, res) => {
+  const { shop, hmac, code } = req.query;
+
+  const params = new URLSearchParams(req.query);
+  params.delete('hmac');
+  const message = decodeURIComponent(params.toString());
   
-//   module.exports = getShopData;
+  const generatedHmac = crypto
+    .createHmac('sha256', CLIENT_SECRET)
+    .update(message)
+    .digest('hex');
 
-// app.get('/install', (req, res) => {
-//     console.log(req.query); 
-//     const requestedShop = req.query.shop;
-//     if (!requestedShop) {
-//       return res.status(400).send('Missing shop parameter');
-//     }
-//     const installUrl = `https://${requestedShop}/admin/oauth/authorize?client_id=${CLIENT_ID}&scope=${SCOPES}&redirect_uri=${REDIRECT_URL}`;  
-//     res.redirect(installUrl);
-//   });
+  if (generatedHmac !== hmac) {
+    return res.status(400).send('HMAC validation failed');
+  }
 
-// app.get('/api/auth/redirect/callback', async (req, res) => {
-//   const { shop, hmac, code } = req.query;
+  try {
+    const tokenUrl = `https://${shop}/admin/oauth/access_token`;
+    const tokenResponse = await axios.post(tokenUrl, {
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      code
+    });
 
-//   const params = new URLSearchParams(req.query);
-//   params.delete('hmac');
-//   const message = decodeURIComponent(params.toString());
+
+    const accessToken = tokenResponse.data.access_token;
+
+    const storeUrl = `https://${shop}/admin/api/2022-01/shop.json`;
+    const storeResponse = await axios.get(storeUrl, {
+      headers: {
+        'X-Shopify-Access-Token': accessToken
+      }
+    });
+    const email = storeResponse.data.shop.email;
+    const username = email.split('@')[0];
+
+    const connection = await createConnection();
+        console.log('Database connection established');
   
-//   const generatedHmac = crypto
-//     .createHmac('sha256', CLIENT_SECRET)
-//     .update(message)
-//     .digest('hex');
+    const query = `
+      INSERT IGNORE INTO store (name, accessToken,email,username) 
+      VALUES (?, ?,?,?)
+      ON DUPLICATE KEY UPDATE 
+      username= VALUES(username),
+      email=VALUES(email),
+      accessToken = VALUES(accessToken);
+    `;
 
-//   if (generatedHmac !== hmac) {
-//     return res.status(400).send('HMAC validation failed');
-//   }
+    connection.query(query, [shop, accessToken,email,username], (err, results) => {
+      if (err) {
+        console.error('Error saving shop data:', err);
+        return res.status(500).send('Internal server error');
+      }
+      console.log('Shop data saved successfully:', results);
+    });
 
-//   try {
-//     const tokenUrl = `https://${shop}/admin/oauth/access_token`;
-//     const tokenResponse = await axios.post(tokenUrl, {
-//       client_id: CLIENT_ID,
-//       client_secret: CLIENT_SECRET,
-//       code
-//     });
+    res.send('App installed successfully!'); 
+  } catch (error) {
+    console.error('Error during OAuth process:', error);
+    res.status(500).send('Failed to get access token');
+  }
+};
 
-
-//     const accessToken = tokenResponse.data.access_token;
-
-//     const storeUrl = `https://${shop}/admin/api/2022-01/shop.json`;
-//     const storeResponse = await axios.get(storeUrl, {
-//       headers: {
-//         'X-Shopify-Access-Token': accessToken
-//       }
-//     });
-//     const email = storeResponse.data.shop.email;
-//     const username = email.split('@')[0];
-
-//     const connection = await createConnection();
-//         console.log('Database connection established');
-  
-//     const query = `
-//       INSERT IGNORE INTO store (name, accessToken,email,username) 
-//       VALUES (?, ?,?,?)
-//       ON DUPLICATE KEY UPDATE 
-//       username= VALUES(username),
-//       email=VALUES(email),
-//       accessToken = VALUES(accessToken);
-//     `;
-
-//     connection.query(query, [shop, accessToken,email,username], (err, results) => {
-//       if (err) {
-//         console.error('Error saving shop data:', err);
-//         return res.status(500).send('Internal server error');
-//       }
-//       console.log('Shop data saved successfully:', results);
-//     });
-
-//     res.send('App installed successfully!'); 
-//   } catch (error) {
-//     console.error('Error during OAuth process:', error);
-//     res.status(500).send('Failed to get access token');
-//   }
-// });
-
-// module.exports = app;
+module.exports = app;
+module.exports.install = install;
+module.exports.redirect = redirect;

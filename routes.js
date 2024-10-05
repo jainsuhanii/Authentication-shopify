@@ -1,17 +1,23 @@
 const express = require('express');
 const router = express.Router();
-// const addressRoutes = require('./addressRoutes');
-// const customerRouter=require("../models/customer");
 const { verifyJwt } = require('./middlewares/auth');
-const { createCustomer, updateCustomer } = require('./controllers/customer');
-const { createAddress, updateAddress } = require('./controllers/address');
+const { token } = require('./controllers/createCustomer');
+const { install } = require('./controllers/auth2.0');
+const { redirect } = require('./controllers/auth2.0');
+
+const { createCustomerAndAddress} = require('./controllers/createCustomer');
+const { updateCustomerAndAddress } = require('./controllers/updateCustomer');
 const { createProduct } = require('./controllers/createProduct');
 const { updateProduct } = require('./controllers/updateProduct');
 
-router.post('/address',verifyJwt, createAddress );
-router.use('/customers',verifyJwt, createCustomer);
-router.use('/customers/:id',verifyJwt, updateCustomer);
-router.use('/customers/:id/addresses',verifyJwt, updateAddress);
+
+router.post('/api/token', token);
+
+router.get('/install', install);
+router.get('/api/auth/redirect/callback', redirect);
+
+router.post('/create/customer',verifyJwt, createCustomerAndAddress );
+router.put('/update/customer/:customer_id',verifyJwt, updateCustomerAndAddress);
 
 
 router.post('/products',verifyJwt, createProduct);

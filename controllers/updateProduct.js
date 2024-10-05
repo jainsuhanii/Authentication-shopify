@@ -5,8 +5,6 @@ const axios = require("axios");
     const store_domain = req.shop.shop;
     const productId = req.params.productId;
   
-   
-  
     try {
       const storeQuery = `SELECT * FROM store WHERE name = ?`;
       const [storeResult] = await global.connection.query(storeQuery, [store_domain]);
