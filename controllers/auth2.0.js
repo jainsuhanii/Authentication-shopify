@@ -13,8 +13,7 @@ const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URL, SCOPES } = process.env;
 function getShopData(requestedShop) {
     return requestedShop;
   }
-  module.exports = getShopData;
-
+  
 const install=async (req, res) => {
     console.log(req.query); 
     const requestedShop = req.query.shop;
@@ -60,9 +59,6 @@ const redirect= async (req, res) => {
     });
     const email = storeResponse.data.shop.email;
     const username = email.split('@')[0];
-
-    const connection = await createConnection();
-        console.log('Database connection established');
   
     const query = `
       INSERT IGNORE INTO store (name, accessToken,email,username) 
@@ -73,7 +69,7 @@ const redirect= async (req, res) => {
       accessToken = VALUES(accessToken);
     `;
 
-    connection.query(query, [shop, accessToken,email,username], (err, results) => {
+    global.connection.query(query, [shop, accessToken,email,username], (err, results) => {
       if (err) {
         console.error('Error saving shop data:', err);
         return res.status(500).send('Internal server error');
