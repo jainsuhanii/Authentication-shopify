@@ -16,7 +16,7 @@ router.post('/api/token', token);
 router.get('/install', install);
 router.get('/api/auth/redirect/callback', redirect);
 
-router.post('/create/customer',verifyJwt, createCustomerAndAddress );
+router.post('/customers',verifyJwt, createCustomerAndAddress );
 router.put('/update/customer/:customer_id',verifyJwt, updateCustomerAndAddress);
 
 

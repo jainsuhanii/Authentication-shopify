@@ -1,13 +1,27 @@
-// require('dotenv').config();
-// const { Shopify } = require('@shopify/shopify-api');
 
-// Shopify.Context.initialize({
-//   API_KEY: process.env.CLIENT_ID,
-//   API_SECRET_KEY: process.env.CLIENT_SECRET,
-//   SCOPES: process.env.SCOPES.split(','),
-//   HOST_NAME: process.env.HOST_NAME.replace(/^https?:\/\//, ''),
-//   IS_EMBEDDED_APP: true,
-//   API_VERSION: '2024-07',
-// });
+require('@shopify/shopify-api/adapters/node')
+const { shopifyApi, Session, ApiVersion } = require("@shopify/shopify-api");
+require('dotenv').config();
+// import {shopifyApp} from '@shopify/shopify-app-remix/server';
 
-// console.log('Shopify Context:', Shopify.Context);
+exports.shopifyRestClient = (shop, accessToken) => {
+    const Shopify = shopifyApi({
+        apiKey: process.env.CLIENT_ID,
+        apiSecretKey: process.env.CLIENT_SECRET,
+        scopes: process.env.SCOPES.split(','),
+        hostName: process.env.HOST_NAME.replace(/^https?:\/\//, ''),
+        apiVersion: ApiVersion.October24,
+    });
+
+    const session = new Session({
+        id: Shopify.auth.nonce(),
+        shop: shop,
+        state: Shopify.auth.nonce(),
+        isOnline: false,
+        accessToken: accessToken,
+    });
+    const client = new Shopify.clients.Rest({ session: session });
+    return client;
+}
+
+
