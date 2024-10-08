@@ -7,8 +7,9 @@ const { redirect } = require('./controllers/auth2.0');
 
 
 const { createCustomer} = require('./controllers/createCustomer');
-const { createAddress } = require ('./controllers/createCustomer');
-const { updateCustomer, updateAddress} = require('./controllers/updateCustomer');
+const { createAddress } = require ('./controllers/createAddress');
+const { updateCustomer} = require('./controllers/updateCustomer');
+const { updateAddress } = require('./controllers/updateAddress');
 const { createProduct } = require('./controllers/createProduct');
 const { updateProduct } = require('./controllers/updateProduct');
 const { getAllCustomers } = require ('./controllers/getCustomer');
@@ -39,7 +40,7 @@ router.get('/products', verifyJwt, getAllProducts);
 
 router.delete('/products/:product_id', verifyJwt, deleteProduct);
 router.delete('/customers/:customer_id', verifyJwt, deleteCustomer);
-router.delete('/customers/:customer_id/:address_id',verifyJwt,   deleteAddress);
+router.delete('/customers/:customer_id/:address_id',verifyJwt, deleteAddress);
 
 
 module.exports = router;
