@@ -7,7 +7,7 @@ app.use(routes);
 
 require('dotenv').config();
 const crypto = require('crypto');
- const customer = require('./controllers/createCustomer');  
+ const customer = require('./controllers/customerController');  
 port = 3000;
 
 

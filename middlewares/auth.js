@@ -1,6 +1,15 @@
 const jwt = require('jsonwebtoken');
 const secretKey= "suhani123";
 
+const token = async (req, res, next) => {
+  const { shop } = req.body;
+  const payload = {
+    shop: shop
+  };
+  const token = jwt.sign(payload, secretKey, { expiresIn: '1h' })
+  res.status(200).json({ token })
+};
+
 async function verifyJwt(req, res, next) {
     const token = req.headers.authorization;
     if (!token) {
@@ -24,3 +33,4 @@ async function verifyJwt(req, res, next) {
   }
 
   module.exports.verifyJwt = verifyJwt;
+  module.exports.token = token;

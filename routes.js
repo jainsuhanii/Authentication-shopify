@@ -1,23 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { verifyJwt } = require('./middlewares/auth');
-const { token } = require('./controllers/createCustomer');
-const { install } = require('./controllers/auth2.0');
-const { redirect } = require('./controllers/auth2.0');
+const { verifyJwt, token } = require('./middlewares/auth');
+const { install, redirect } = require('./controllers/authController');
 
 
-const { createCustomer} = require('./controllers/createCustomer');
-const { createAddress } = require ('./controllers/createAddress');
-const { updateCustomer} = require('./controllers/updateCustomer');
-const { updateAddress } = require('./controllers/updateAddress');
-const { createProduct } = require('./controllers/createProduct');
-const { updateProduct } = require('./controllers/updateProduct');
-const { getAllCustomers } = require ('./controllers/getCustomer');
-const { getAllAddresses } = require('./controllers/getAddresses');
-const { getAllProducts } = require('./controllers/getProducts');
-const { deleteProduct } = require('./controllers/deleteProduct');
-const { deleteCustomer } = require('./controllers/deleteCustomer');
-const { deleteAddress } = require('./controllers/deleteAddress');
+const { createCustomer, updateCustomer, deleteCustomer, getAllCustomers } = require('./controllers/customerController');
+const { createAddress, updateAddress, deleteAddress, getAllAddresses } = require('./controllers/addressController');
+const { createProduct, updateProduct, deleteProduct, getAllProducts } = require('./controllers/productController');
+
 
 router.post('/api/token', token);
 
