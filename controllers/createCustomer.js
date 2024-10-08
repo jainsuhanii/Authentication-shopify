@@ -18,11 +18,10 @@ const token = async (req, res, next) => {
   res.status(200).json({ token })
 };
 
-const createCustomerAndAddress = async (req, res) => {
+const createCustomer = async (req, res) => {
   const { id, accessToken, shop } = req.shop;
-  const { first_name, last_name, email, phone, address } = req.body.customer;
-
-
+  const { first_name, last_name, email, phone } = req.body.customer;
+  console.log(id, accessToken, shop);
   const customerData = {
     customer: {
       first_name,
@@ -39,9 +38,9 @@ const createCustomerAndAddress = async (req, res) => {
   });
 
 
-  if (customerResponse.data && customerResponse.data.customer) {
-    const shopifyCustomer = customerResponse.data.customer;
-    console.log('Shopify Customer:', shopifyCustomer);
+  if (customerResponse?.body?.customer) {
+    const shopifyCustomer = customerResponse.body.customer;
+    console.log(shopifyCustomer);
 
     const customer = {
       first_name: shopifyCustomer.first_name,
@@ -50,104 +49,108 @@ const createCustomerAndAddress = async (req, res) => {
       phone: shopifyCustomer.phone,
       store_id: id,
     };
-
-
-    const customerQuery = `
-        INSERT INTO customers (customer_id, first_name, last_name, email, phone, store_id)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `;
-    const customerValues = [
-      shopifyCustomer.id,
-      customer.first_name,
-      customer.last_name,
-      customer.email,
-      customer.phone,
-      id,
-    ];
-
+    const query = `
+          INSERT INTO customers (customer_id, first_name, last_name, email, phone, store_id)
+          VALUES (?, ?, ?, ?, ?,?)
+        `;
+    const values = [shopifyCustomer.id, customer.first_name, customer.last_name, customer.email, customer.phone, id];
     try {
-      const [customerResult] = await global.connection.query(customerQuery, customerValues);
-
-      if (address) {
-        const { line1, line2, city, state, zip, country } = address;
-
-        const addressData = {
-          address: {
-            address1: line1,
-            address2: line2,
-            city,
-            province: state,
-            zip,
-            country,
-          },
-        };
-
-        let addressResponse;
-        try {
-          addressResponse = await axios.post(
-            `https://${shop}/admin/api/2024-07/customers/${shopifyCustomer.id}/addresses.json`,
-            addressData,
-            { headers: { 'X-Shopify-Access-Token': accessToken } }
-          );
-        } catch (error) {
-          console.error('Error creating address in Shopify:', error.response?.data || error.message);
-          return res.status(500).json({ message: 'Failed to create address in Shopify', error: error.message });
-        }
-
-        if (addressResponse.data && addressResponse.data.customer_address) {
-          const shopifyAddress = addressResponse.data.customer_address;
-
-          const addressToSave = {
-            line1: shopifyAddress.address1,
-            line2: shopifyAddress.address2,
-            city: shopifyAddress.city,
-            state: shopifyAddress.province,
-            zip: shopifyAddress.zip,
-            country: shopifyAddress.country,
-            customer_id: shopifyCustomer.id,
-          };
-
-          const addressQuery = `
-              INSERT INTO addresses (line1, line2, city, state, zip, country, customer_id, address_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-          const addressValues = [
-            addressToSave.line1,
-            addressToSave.line2,
-            addressToSave.city,
-            addressToSave.state,
-            addressToSave.zip,
-            addressToSave.country,
-            shopifyCustomer.id,
-            shopifyAddress.id,
-          ];
-
-          try {
-            const [addressResult] = await global.connection.query(addressQuery, addressValues);
-            return res.status(200).json({
-              message: 'Customer and address created and saved successfully',
-              customer: shopifyCustomer,
-              address: shopifyAddress,
-            });
-          } catch (dbError) {
-            console.error('Error saving address to the database:', dbError.message);
-            return res.status(500).json({ message: 'Failed to save address to database', error: dbError.message });
-          }
-        } else {
-          console.error('No address returned in Shopify response');
-          return res.status(400).json({ message: 'Failed to create address in Shopify: No address returned' });
-        }
-      } else {
-        return res.status(200).json({ message: 'Customer created and saved successfully', customer: shopifyCustomer });
-      }
+      const [result] = await global.connection.query(query, values);
+      return res.status(200).json({
+        message: 'Customer created and saved to database successfully',
+        customer,
+        dbResult: result,
+      });
     } catch (dbError) {
-      console.error('Database error:', dbError.message);
+      console.error('Database error:', dbError.message || dbError);
       return res.status(500).json({ message: 'Failed to save customer in database' });
     }
   } else {
-    return res.status(400).json({ message: 'Failed to create customer in Shopify' });
+    return res.status(400).json({ message: 'Failed to create customer in Shopifyy' });
   }
 };
+
+const createAddress = async (req, res) => {
+  const { id, accessToken, shop } = req.shop;
+  const { id:customer_id } = req.params;
+  const { address } = req.body;
+  if (!address) {
+    return res.status(400).json({ message: 'Address is required' });
+  }
+
+  const { line1, line2, city, state, zip, country } = address;
+
+  const addressData = {
+    address: {
+      address1: line1,
+      address2: line2,
+      city,
+      province: state,
+      zip,
+      country,
+    },
+  };
+
+  try {
+    const client = shopifyRestClient(shop, accessToken);
+    const addressResponse = await client.post({
+      path: `customers/${customer_id}/addresses.json`,
+      data: addressData,
+    });
+   
+
+
+    if (addressResponse.body.customer_address) {
+      const shopifyAddress = addressResponse.body.customer_address;
+
+      const addressToSave = {
+        line1: shopifyAddress.address1,
+        line2: shopifyAddress.address2,
+        city: shopifyAddress.city,
+        state: shopifyAddress.province,
+        zip: shopifyAddress.zip,
+        country: shopifyAddress.country,
+        customer_id: customer_id,
+      };
+
+      const addressQuery = `
+        INSERT INTO addresses (line1, line2, city, state, zip, country, customer_id, address_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const addressValues = [
+        addressToSave.line1,
+        addressToSave.line2,
+        addressToSave.city,
+        addressToSave.state,
+        addressToSave.zip,
+        addressToSave.country,
+        customer_id,
+        shopifyAddress.id,
+      ];
+
+      try {
+        await global.connection.query(addressQuery, addressValues);
+        return res.status(200).json({
+          message: 'Address created and saved successfully',
+          address: shopifyAddress,
+        });
+      } catch (dbError) {
+        console.error('Error saving address to the database:', dbError.message);
+        return res.status(500).json({ message: 'Failed to save address to database', error: dbError.message });
+      }
+    } else {
+      return res.status(400).json({ message: 'Failed to create address in Shopify: No address returned' });
+    }
+  } catch (error) {
+    console.error('Error creating address in Shopify:', error.response?.data || error.message);
+    return res.status(500).json({ message: 'Failed to create address in Shopify', error: error.message });
+  }
+};
+
+
 module.exports = router;
-module.exports.createCustomerAndAddress = createCustomerAndAddress;
+module.exports.createCustomer = createCustomer;
+module.exports.createAddress = createAddress;
 module.exports.token = token;
+
+

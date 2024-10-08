@@ -1,4 +1,5 @@
-const axios = require('axios');
+
+const { shopifyRestClient } = require('../shopify');
 
 const generateVariantsFromOptions = (options) => {
   const optionValues = options.map(option => option.values);
@@ -32,17 +33,13 @@ const updateProduct = async (req, res) => {
     images = [],
     options = [],
     status,
-  } = req.body;
+  } = req.body.product;
 
   const store_domain = req.shop.shop;
   const productId = req.params.productId; 
-  if (!options.length) {
-    return res.status(400).json({
-      message: "At least one option is required.",
-    });
-  }
 
   const generatedVariants = variants.length ? variants : generateVariantsFromOptions(options);
+
 
   try {
     const storeQuery = `SELECT * FROM store WHERE name = ?`;
@@ -87,19 +84,12 @@ const updateProduct = async (req, res) => {
       },
     };
 
-    console.log("Product Payload:", JSON.stringify(productPayload, null, 2));
-
-    const shopifyResponse = await axios.put(
-      `https://${store_domain}/admin/api/2024-01/products/${productId}.json`,
-      productPayload,
-      {
-        headers: {
-          "X-Shopify-Access-Token": shopifyAccessToken,
-        },
-      }
-    );
-
-    const shopifyProduct = shopifyResponse.data.product;
+    const client = shopifyRestClient(store_domain,shopifyAccessToken);
+    const productResponse = await client.put({
+      path: `products/${productId}`,
+      data: productPayload,
+    })
+    let shopifyProduct = productResponse?.body?.product;
 
     const updateProductQuery = `
       UPDATE products 
@@ -150,7 +140,6 @@ const updateProduct = async (req, res) => {
 
     await global.connection.query(deleteOptionsQuery, [productIdFromDb]);
 
-    // Insert new options into the product_options table
     const insertOptionQuery = `
       INSERT INTO product_options (product_id, name, position, \`values\`)
       VALUES (?, ?, ?, ?)
@@ -158,7 +147,6 @@ const updateProduct = async (req, res) => {
 
     for (const option of shopifyProduct.options) {
       const valuesJson = JSON.stringify(option.values);
-      console.log("Values JSON:", valuesJson); // Debugging line
       await global.connection.query(insertOptionQuery, [
         productIdFromDb,
         option.name,
@@ -194,12 +182,13 @@ const updateProduct = async (req, res) => {
       product: shopifyProduct,
     });
   } catch (error) {
+    console.log(error)
     if (error.response) {
-      console.error("Shopify API Error:", error.response.data.errors || error.response.data);
-      return res.status(500).json({
-        message: "Error updating product in Shopify.",
-        error: error.response.data.errors || error.response.data,
-      });
+      // console.error("Shopify API Error:", error.response.data.errors || error.response.data);
+      // return res.status(500).json({
+      //   message: "Error updating product in Shopify.",
+      //   error: error.response.data.errors || error.response.data,
+      // });
     } else {
       console.error("Error updating product:", error.message);
       res.status(500).json({ message: "Error updating product.", error: error.message || error.response.data });

@@ -2,7 +2,6 @@
 require('@shopify/shopify-api/adapters/node')
 const { shopifyApi, Session, ApiVersion } = require("@shopify/shopify-api");
 require('dotenv').config();
-// import {shopifyApp} from '@shopify/shopify-app-remix/server';
 
 exports.shopifyRestClient = (shop, accessToken) => {
     const Shopify = shopifyApi({

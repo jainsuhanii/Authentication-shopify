@@ -1,4 +1,4 @@
-const axios = require('axios');
+const { shopifyRestClient } = require("../shopify")
 
 const generateVariantsFromOptions = (options) => {
   const optionValues = options.map(option => option.values);
@@ -36,12 +36,6 @@ const createProduct = async (req, res) => {
 
   console.log("Request body:", req.body); 
   const store_domain = req.shop.shop;
-
-  if (!options.length) {
-    return res.status(400).json({
-      message: "At least one option is required.",
-    });
-  }
 
   const generatedVariants = variants.length ? variants : generateVariantsFromOptions(options);
 
@@ -87,19 +81,19 @@ const createProduct = async (req, res) => {
       },
     };
 
-    console.log("Product Payload:", JSON.stringify(productPayload, null, 2));
+    const client = shopifyRestClient(store_domain, shopifyAccessToken);
+    const response = await client.post({
+      path: 'products',
+      data: productPayload,
+    });
 
-    const shopifyResponse = await axios.post(
-      `https://${store_domain}/admin/api/2024-01/products.json`,
-      productPayload,
-      {
-        headers: {
-          "X-Shopify-Access-Token": shopifyAccessToken,
-        },
-      }
-    );
+    if ( !response.body.product) {
+      return res.status(500).json({
+        message: "Unexpected response structure from Shopify.",
+      });
+    }
 
-    const shopifyProduct = shopifyResponse.data.product;
+    const shopifyProduct = response.body.product;
 
     const insertProductQuery = `
       INSERT INTO products (shopify_product_id, title, vendor, product_type, tags, status)
@@ -118,7 +112,6 @@ const createProduct = async (req, res) => {
     const productId = insertProductResult.insertId; 
     console.log("Inserted Product ID:", productId); 
 
-    // Insert variants
     const insertVariantQuery = `
       INSERT INTO product_variants (product_id, title, price, sku, inventory_quantity, option1, option2, option3)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -137,7 +130,6 @@ const createProduct = async (req, res) => {
       ]);
     }
 
-    
     const insertOptionQuery = `
       INSERT INTO product_options (product_id, name, position, \`values\`)
       VALUES (?, ?, ?, ?)
@@ -187,5 +179,6 @@ const createProduct = async (req, res) => {
     }
   }
 };
+
 
 module.exports.createProduct = createProduct;
