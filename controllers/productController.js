@@ -49,6 +49,9 @@ const createProduct = async (req, res) => {
 
     const store = storeResult[0];
     const shopifyAccessToken = store.accessToken;
+    const {id}=req.shop;
+    const storeId = id;
+    console.log("Store ID:", storeId);
 
     const productPayload = {
       product: {
@@ -96,12 +99,13 @@ const createProduct = async (req, res) => {
     const shopifyProduct = response.body.product;
 
     const insertProductQuery = `
-      INSERT INTO products (shopify_product_id, title, vendor, product_type, tags, status)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO products (shopify_product_id,store_id, title, vendor, product_type, tags, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [insertProductResult] = await global.connection.query(insertProductQuery, [
       shopifyProduct.id,
+      storeId,
       shopifyProduct.title,
       shopifyProduct.vendor,
       shopifyProduct.product_type,
@@ -109,17 +113,21 @@ const createProduct = async (req, res) => {
       shopifyProduct.status,
     ]);
 
-    const productId = insertProductResult.insertId; 
-    console.log("Inserted Product ID:", productId); 
+    // const productId = insertProductResult.insertId; 
+    // console.log("Inserted Product ID:", productId); 
+    // console.log("Inserting product with ID:", shopifyProduct.id);
+    // console.log("Inserting store ID:", storeId);
+
 
     const insertVariantQuery = `
-      INSERT INTO product_variants (product_id, title, price, sku, inventory_quantity, option1, option2, option3)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO product_variants (product_id, shopify_variant_id, title, price, sku, inventory_quantity, option1, option2, option3)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     for (const variant of shopifyProduct.variants) {
       await global.connection.query(insertVariantQuery, [
-        productId,
+        shopifyProduct.id,
+        variant.id,
         variant.title,
         variant.price,
         variant.sku,
@@ -131,15 +139,16 @@ const createProduct = async (req, res) => {
     }
 
     const insertOptionQuery = `
-      INSERT INTO product_options (product_id, name, position, \`values\`)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO product_options (product_id, shopify_option_id,name, position, \`values\`)
+      VALUES (?, ?, ?, ?, ?)
     `;
 
     for (const option of shopifyProduct.options) {
       const valuesJson = JSON.stringify(option.values);
       console.log("Values JSON:", valuesJson); 
       await global.connection.query(insertOptionQuery, [
-        productId, 
+        shopifyProduct.id, 
+        option.id,
         option.name,
         option.position,
         valuesJson,
@@ -153,7 +162,7 @@ const createProduct = async (req, res) => {
 
     for (const image of shopifyProduct.images) {
       await global.connection.query(insertImageQuery, [
-        productId,
+        shopifyProduct.id,
         image.src,
         image.alt,
         image.position,
@@ -355,57 +364,120 @@ const createProduct = async (req, res) => {
   };
 
   async function getAllProducts(req, res) {
-    const store_domain = req.shop.shop;
-    const shopifyAccessToken = req.shop.accessToken;
-  
     try {
-      const limit = parseInt(req.query.limit) || 5; 
-      const pageInfo = req.query.page_info || null; 
+      // Pagination parameters
+      const limit = parseInt(req.query.limit) || 5;  // Default limit
+      const offset = parseInt(req.query.offset) || 0; // Default offset
   
-      const client = shopifyRestClient(store_domain, shopifyAccessToken);
+      const sqlQuery = `
+        SELECT 
+          p.id AS product_id, p.shopify_product_id, p.store_id, p.title, p.body_html, p.vendor, p.product_type, p.tags, 
+          p.status, p.created_at AS product_created_at, p.updated_at AS product_updated_at,
+          
+          po.id AS option_id, po.shopify_option_id, po.name AS option_name, po.position AS option_position, 
+          po.values AS option_values, po.created_at AS option_created_at, po.updated_at AS option_updated_at,
+          
+          pv.id AS variant_id, pv.shopify_variant_id, pv.title AS variant_title, pv.price AS variant_price, 
+          pv.sku AS variant_sku, pv.inventory_quantity, pv.option1, pv.option2, pv.option3, 
+          pv.created_at AS variant_created_at, pv.updated_at AS variant_updated_at,
+          
+          pi.id AS image_id, pi.shopify_image_id, pi.src AS image_src, pi.alt AS image_alt, 
+          pi.position AS image_position, pi.created_at AS image_created_at, pi.updated_at AS image_updated_at
+          
+        FROM products p
+        LEFT JOIN product_options po ON p.shopify_product_id = po.product_id
+        LEFT JOIN product_variants pv ON p.shopify_product_id = pv.product_id
+        LEFT JOIN product_images pi ON p.shopify_product_id = pi.product_id
+        ORDER BY p.id
+        LIMIT ? OFFSET ?;
+      `;
   
-      const requestParams = {
-        limit,
-      };
+      // Fetch product data
+      const [rows] = await global.connection.query(sqlQuery, [limit, offset]);
   
-      if (pageInfo) {
-        requestParams.page_info = pageInfo;
-      }
+      // Fetch total product count for pagination
+      const countQuery = `SELECT COUNT(*) as total FROM products;`;
+      const [countResult] = await global.connection.query(countQuery);
+      const totalProducts = countResult[0].total;
   
-      const shopifyResponse = await client.get({
-        path: 'products',
-        query: requestParams,
-      });
+      // Format and reduce rows to a single array with grouped options, variants, and images
+      const products = rows.reduce((acc, row) => {
+        const { product_id, ...productData } = row;
   
-      const shopifyProducts = shopifyResponse.body.products || [];
-      const nextPageInfo = shopifyResponse.body.page_info?.next || null;
+        // Find or create a product in the accumulator
+        let product = acc.find(p => p.product_id === product_id);
+        if (!product) {
+          product = {
+            product_id,
+            shopify_product_id: productData.shopify_product_id,
+            store_id: productData.store_id,
+            title: productData.title,
+            body_html: productData.body_html,
+            vendor: productData.vendor,
+            product_type: productData.product_type,
+            tags: productData.tags,
+            status: productData.status,
+            created_at: productData.product_created_at,
+            updated_at: productData.product_updated_at,
+            options: [],
+            variants: [],
+            images: [],
+          };
+          acc.push(product);
+        }
   
-      const products = shopifyProducts.map(product => ({
-        product_id: product.id,
-        shopify_product_id: product.id,
-        store_id: store_domain,
-        title: product.title,
-        body_html: product.body_html,
-        vendor: product.vendor,
-        product_type: product.product_type,
-        tags: Array.isArray(product.tags) ? product.tags.join(', ') : product.tags || '',
-        status: product.status,
-        created_at: product.created_at,
-        updated_at: product.updated_at,
-        options: product.options || [],
-        variants: product.variants || [],
-        images: product.images || [],
-      }));
+        // Add options, variants, and images if they exist
+        if (row.option_id != null) {
+          product.options.push({
+            option_id: row.option_id,
+            shopify_option_id: row.shopify_option_id,
+            name: row.option_name,
+            position: row.option_position,
+            values: row.option_values,
+            created_at: row.option_created_at,
+            updated_at: row.option_updated_at,
+          });
+        }
+  
+        if (row.variant_id != null) {
+          product.variants.push({
+            variant_id: row.variant_id,
+            shopify_variant_id: row.shopify_variant_id,
+            title: row.variant_title,
+            price: row.variant_price,
+            sku: row.variant_sku,
+            inventory_quantity: row.inventory_quantity,
+            option1: row.option1,
+            option2: row.option2,
+            option3: row.option3,
+            created_at: row.variant_created_at,
+            updated_at: row.variant_updated_at,
+          });
+        }
+  
+        if (row.image_id != null) {
+          product.images.push({
+            image_id: row.image_id,
+            shopify_image_id: row.shopify_image_id,
+            src: row.image_src,
+            alt: row.image_alt,
+            position: row.image_position,
+            created_at: row.image_created_at,
+            updated_at: row.image_updated_at,
+          });
+        }
+  
+        return acc;
+      }, []);
   
       return res.status(200).json({
         message: 'Products fetched successfully',
         products,
         pagination: {
-          currentPage: req.query.page || 1, 
+          currentPage: Math.floor(offset / limit) + 1,
           limit,
-          totalProducts: shopifyResponse.body.count || products.length, 
-          totalPages: Math.ceil((shopifyResponse.body.count || products.length) / limit), 
-          nextPageInfo,
+          totalProducts,
+          totalPages: Math.ceil(totalProducts / limit),
         },
       });
     } catch (error) {
@@ -416,6 +488,7 @@ const createProduct = async (req, res) => {
       });
     }
   }
+  
 
 
 async function deleteProduct(req, res) {

@@ -7,8 +7,8 @@ const { install, redirect } = require('./controllers/authController');
 const { createCustomer, updateCustomer, deleteCustomer, getAllCustomers } = require('./controllers/customerController');
 const { createAddress, updateAddress, deleteAddress, getAllAddresses } = require('./controllers/addressController');
 const { createProduct, updateProduct, deleteProduct, getAllProducts } = require('./controllers/productController');
-
-
+const { createOrder, cancelOrder, getOrder } = require('./controllers/orderController');
+const { createGiftCard } = require('./controllers/giftcardsController');
 router.post('/api/token', token);
 
 router.get('/install', install);
@@ -32,5 +32,10 @@ router.delete('/products/:product_id', verifyJwt, deleteProduct);
 router.delete('/customers/:customer_id', verifyJwt, deleteCustomer);
 router.delete('/customers/:customer_id/:address_id',verifyJwt, deleteAddress);
 
+router.post('/order', verifyJwt, createOrder);
+router.post('/order/:id', verifyJwt, cancelOrder);
+router.get('/order/:id', verifyJwt, getOrder);
 
+
+router.post('/giftcards', verifyJwt, createGiftCard);
 module.exports = router;
