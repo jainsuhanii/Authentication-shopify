@@ -8,6 +8,10 @@ const { createCustomer, updateCustomer, deleteCustomer, getAllCustomers } = requ
 const { createAddress, updateAddress, deleteAddress, getAllAddresses } = require('./controllers/addressController');
 const { createProduct, updateProduct, deleteProduct, getAllProducts } = require('./controllers/productController');
 const { createOrder, cancelOrder, getOrder } = require('./controllers/orderController');
+const { refundOrder, calculateRefund } = require('./controllers/refundController');
+const { createTransaction } = require('./controllers/transactionController');
+const { createFulfillment } = require('./controllers/fulfillmentController');
+
 const { createGiftCard } = require('./controllers/giftcardsController');
 router.post('/api/token', token);
 
@@ -36,6 +40,11 @@ router.post('/order', verifyJwt, createOrder);
 router.post('/order/:id', verifyJwt, cancelOrder);
 router.get('/order/:id', verifyJwt, getOrder);
 
+
+router.post('/transaction/:id', verifyJwt, createTransaction);
+router.post('/fulfillment', verifyJwt, createFulfillment);
+router.post('/refund',verifyJwt, refundOrder);
+router.post('/calculate/refund', verifyJwt, calculateRefund);
 
 router.post('/giftcards', verifyJwt, createGiftCard);
 module.exports = router;

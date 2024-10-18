@@ -6,6 +6,7 @@ app.use(express.json());
 const axios = require('axios');
 require('dotenv').config();
 const crypto = require('crypto');
+const db = require('../database/db');
 port = 3000;
 
 
@@ -15,7 +16,6 @@ function getShopData(requestedShop) {
   }
   
 const install=async (req, res) => {
-    console.log(req.query); 
     const requestedShop = req.query.shop;
     if (!requestedShop) {
       return res.status(400).send('Missing shop parameter');
@@ -60,22 +60,42 @@ const redirect= async (req, res) => {
     const email = storeResponse.data.shop.email;
     const username = email.split('@')[0];
   
-    const query = `
-      INSERT IGNORE INTO store (name, accessToken,email,username) 
-      VALUES (?, ?,?,?)
-      ON DUPLICATE KEY UPDATE 
-      username= VALUES(username),
-      email=VALUES(email),
-      accessToken = VALUES(accessToken);
-    `;
+    const storeData = {
+      name: shop,
+      accessToken: accessToken,
+      email: email,
+      username: username
+    };
 
-    global.connection.query(query, [shop, accessToken,email,username], (err, results) => {
-      if (err) {
-        console.error('Error saving shop data:', err);
-        return res.status(500).send('Internal server error');
-      }
-      console.log('Shop data saved successfully:', results);
+    let [strs, created] = await db.Stores.findOrCreate({
+      where: {
+         name: shop 
+      },
+      defaults: storeData
     });
+
+    if (!created) await strs.update(storeData);
+    
+    // db.Stores.findOrCreate({
+    //   where: { name: shop },
+    //   defaults: storeData
+    // }).spread((store, created) => {
+    //   if (!created) {
+    //     db.Stores.update(storeData).then(() => {
+    //       console.log('Shop data saved successfully');
+    //     }).catch(err => {
+    //       console.error('Error saving shop data:', err);
+    //       return res.status(500).send('Internal server error');
+    //     });
+    //   }
+    // });
+    // sequelize.query(query, [shop, accessToken,email,username], (err, results) => {
+    //   if (err) {
+    //     console.error('Error saving shop data:', err);
+    //     return res.status(500).send('Internal server error');
+    //   }
+    //   console.log('Shop data saved successfully:', results);
+    // });
 
     res.send('App installed successfully!'); 
   } catch (error) {

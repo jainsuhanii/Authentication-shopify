@@ -1,21 +1,20 @@
 const { shopifyRestClient } = require("../shopify");
 
 const createGiftCard = async (req, res) => {
-    console.log("Request Body:", req.body); // Log the entire request body
+    console.log("Request Body:", req.body); 
 
     const { initial_value, currency, customer_id, expires_on } = req.body; 
     const store_domain = req.shop.shop;
     const shopifyAccessToken = req.shop.accessToken;
 
     try {
-        // Convert customer_id to BigInt and then to string for serialization
         const customerId = BigInt(customer_id).toString();
 
         const giftCardPayload = {
             gift_card: {
                 initial_value: initial_value,
                 currency: currency,
-                customer_id: customerId, // Use string
+                customer_id: customerId, 
                 expires_on: expires_on ? new Date(expires_on).toISOString() : null, 
             },
         };
