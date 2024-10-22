@@ -54,6 +54,9 @@ db.transactions = require('../models/transactionsSchema')(sequelize);
 db.refunds = require('../models/refundSchema')(sequelize);
 db.fulfillments = require('../models/fulfillmentsSchema')(sequelize);
 
+// db.Stores.hasMany(db.Customers, { foreignKey: "store_id", sourceKey: "store_id" })
+// db.Customers.belongsTo(db.Stores, { foreignKey: "store_id", sourceKey: "store_id" })
+
 db.products.hasMany(db.product_variants, { foreignKey: "product_id", sourceKey: "product_id" })
 db.product_variants.belongsTo(db.products, { foreignKey: "product_id", sourceKey: "product_id" })
 

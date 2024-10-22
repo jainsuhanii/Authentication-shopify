@@ -1,6 +1,6 @@
 const Sequelize = require('sequelize');
 module.exports = (sequelize) => {
-    return sequelize.define("customer", {
+    return sequelize.define("customers", {
         id: {
             type: Sequelize.INTEGER,
             autoIncrement: true,
@@ -50,7 +50,7 @@ module.exports = (sequelize) => {
             defaultValue: Sequelize.NOW
         }
     }, {
-        tableName: 'customer',
+        tableName: 'customers',
         timestamps: true,
     });
     };

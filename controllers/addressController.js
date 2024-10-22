@@ -3,79 +3,77 @@ const router = express.Router();
 const bodyParser = require('body-parser');
 router.use(bodyParser.json());
 
-const { shopifyRestClient } = require("../shopify");
+const { shopifyRestClient, shopifyGraphQLClient } = require("../shopify");
 const { Addresses } = require('../database/db');
 
-const createAddress = async (req, res) => {
-  const { id, accessToken, shop } = req.shop;
-  const { id: customer_id } = req.params;
-  const { address } = req.body;
+async function createAddress(req, res) {
+  const store_domain = req.shop.shop;
+  const shopifyAccessToken = req.shop.accessToken;
+  const { id: customerId } = req.params; // Extract customerId from request parameters
+  const { address } = req.body; // Extract address data from the request body
 
-  if (!address) {
-    return res.status(400).json({ message: 'Address is required' });
-  }
+  const client = shopifyGraphQLClient(store_domain, shopifyAccessToken);
 
-  const { line1, line2, city, state, zip, country } = address;
+  // Define the GraphQL mutation
+  const customerAddressCreateMutation = `
+    mutation customerAddressCreate($input: MailingAddressInput!) {
+      customerAddressCreate(input: $input) {
+        customerAddress {
+          id
+          firstName
+          lastName
+          address1
+          address2
+          city
+          province
+          country
+          zip
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
 
-  const addressData = {
-    address: {
-      address1: line1,
-      address2: line2,
-      city,
-      province: state,
-      zip,
-      country,
+  const variables = {
+    input: {
+      customerId: `gid://shopify/Customer/${customerId}`, // Format the customerId correctly
+      ...address, // Spread the address fields into the input
     },
   };
 
   try {
-    const client = shopifyRestClient(shop, accessToken);
-    const addressResponse = await client.post({
-      path: `customers/${customer_id}/addresses.json`,
-      data: addressData,
+    const shopifyResponse = await client.query({
+      data: {
+        query: customerAddressCreateMutation,
+        variables,
+      },
     });
 
-    if (addressResponse.body.customer_address) {
-      const shopifyAddress = addressResponse.body.customer_address;
+    const data = shopifyResponse.body.data.customerAddressCreate;
 
-      const addressToSave = {
-        line1: shopifyAddress.address1,
-        line2: shopifyAddress.address2,
-        city: shopifyAddress.city,
-        state: shopifyAddress.province,
-        zip: shopifyAddress.zip,
-        country: shopifyAddress.country,
-        customer_id: customer_id,
-        address_id: shopifyAddress.id,
-      };
-
-      try {
-        await Addresses.create(addressToSave);
-        
-        return res.status(200).json({
-          message: 'Address created and saved successfully',
-          address: shopifyAddress,
-        });
-      } catch (dbError) {
-        console.error('Error saving address to the database:', dbError.message);
-        return res.status(500).json({ 
-          message: 'Failed to save address to database', 
-          error: dbError.message 
-        });
-      }
-    } else {
+    if (data.userErrors.length > 0) {
       return res.status(400).json({
-        message: 'Failed to create address in Shopify: No address returned',
+        message: 'Failed to create customer address',
+        errors: data.userErrors,
       });
     }
+
+    return res.status(200).json({
+      message: 'Customer address created successfully',
+      address: data.customerAddress,
+    });
   } catch (error) {
-    console.error('Error creating address in Shopify:', error.response?.data || error.message);
+    console.error('Error creating customer address:', error?.response?.body || error.message);
     return res.status(500).json({
-      message: 'Failed to create address in Shopify',
-      error: error.message,
+      message: 'Error creating customer address',
+      error: error.message || error?.response?.body,
     });
   }
-};
+}
+
 
 
 
@@ -219,7 +217,7 @@ async function deleteAddress(req, res) {
       });
     }
 
-    const client = shopifyRestClient(store_domain, shopifyAccessToken);
+    const client = shopifyGraphQLClient(store_domain, shopifyAccessToken);
     await client.delete({
       path: `customers/${customer_id}/addresses/${address_id}`,
     });

@@ -1,4 +1,5 @@
 const { shopifyRestClient } = require("../shopify");
+
 const db= require('../database/db');
 const createOrder = async (req, res) => {
 
@@ -55,7 +56,9 @@ const createOrder = async (req, res) => {
         const subtotal = total_price.toFixed(2);
 
         const orderPayload = {
-            customer_id,
+            customer:{
+                id: customer_id,
+            },
             financial_status,
             subtotal,
             fulfillment_status,
@@ -87,11 +90,15 @@ const createOrder = async (req, res) => {
             path: 'orders',
             data: { order: orderPayload },
         });
+        const fulfillmentResponse= await client.get({
+            path: `orders/${response.body.order.id}/fulfillment_orders.json`,
+        })
+
 
         const shopifyOrder = response.body.order;
-
         const order = await db.orders.create({
             order_id: shopifyOrder.id,
+            fulfillment_order_id: fulfillmentResponse.body.fulfillment_orders[0].id,
             customer_id,
             price: total_price,
             discount: 0,

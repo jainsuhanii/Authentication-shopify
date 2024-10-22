@@ -17,21 +17,22 @@ const createFulfillment = async (req, res) => {
             return res.status(400).json({ message: 'Invalid fulfillment data' });
         }
 
+        const fulfillmentIdNew = await db.orders.findOne({
+            where: { order_id: fulfillment.order_id },
+        })
+        console.log(fulfillmentIdNew, "fullfillmentnew")
         const fulfillmentPayload = {
             fulfillment: {
                 order_id: fulfillment.order_id,
                 message: fulfillment.message,
                 notify_customer: fulfillment.notify_customer,
-                // tracking_number: fulfillment.tracking_number,
-                // tracking_url: fulfillment.tracking_url,
-                // tracking_company: fulfillment.tracking_company,
                 tracking_info :
                 {
-                number:"MS1562678",
-                url:"https://www.my-shipping-company.com?tracking_number=MS1562678"
-            },
+                number:fulfillment.number,
+                url:fulfillment.url,
+                },
                 line_items_by_fulfillment_order: fulfillment.line_items_by_fulfillment_order.map(item => ({
-                    fulfillment_order_id: item.fulfillment_order_id,
+                    fulfillment_order_id: fulfillmentIdNew.fulfillment_order_id,
                     fulfillment_order_line_items: item.fulfillment_order_line_items.map(lineItem => {
                         if (!lineItem.id || typeof lineItem.quantity !== 'number') {
                             throw new Error('Invalid line item data');
@@ -63,9 +64,8 @@ const createFulfillment = async (req, res) => {
         const newFulfillment = await db.fulfillments.create({
             fulfillment_id: fulfillmentId,
             location_id: fulfillment.location_id,
-            number: fulfillment.tracking_number,
-            tracking_company: fulfillment.tracking_company,
-            tracking_url: fulfillment.tracking_url,
+            number: fulfillment.number,
+            tracking_url: fulfillment.url,
             notify_customer: fulfillment.notify_customer,
         });
 

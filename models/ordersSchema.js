@@ -44,7 +44,11 @@ module.exports = (sequelize) => {
         allowNull: false,
         onDelete: 'CASCADE',  
         comment: "Foreign key mapping to the 'customer_id' in the 'customers' table. Deletes related records when the referenced customer is deleted."
-      },      
+      },  
+      fulfillment_order_id: {
+        type: Sequelize.BIGINT,
+        allowNull:false
+      },
     createdAt: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.NOW
