@@ -18,11 +18,11 @@ module.exports = (sequelize) => {
       comment: "Foreign key mapping to the product's primary key 'id'."
     },
     image_id: {
-        type: Sequelize.BIGINT,
+        type: Sequelize.STRING,
         allowNull: false,
         unique:"image_id",
       },
-    src: {
+    url: {
       type: Sequelize.STRING,
       allowNull: false,
       comment: "The URL of the product image."

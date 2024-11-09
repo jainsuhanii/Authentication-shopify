@@ -21,7 +21,7 @@ module.exports = (sequelize) => {
             allowNull: false
         },
         variant_id: {
-            type: Sequelize.BIGINT,
+            type: Sequelize.STRING,
             references:{
                 model: 'product_variants',
                 key: 'variant_id'

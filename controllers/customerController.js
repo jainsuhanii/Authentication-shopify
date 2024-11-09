@@ -80,7 +80,6 @@ const createCustomer = async (req, res) => {
 
     const data = customerResponse?.body?.data;
 
-    // Check for user errors
     const userErrors = data?.customerCreate?.userErrors;
     if (userErrors && userErrors.length > 0) {
       return res.status(400).json({
@@ -89,7 +88,6 @@ const createCustomer = async (req, res) => {
       });
     }
 
-    // Proceed if the customer was created successfully
     if (data?.customerCreate?.customer) {
       const shopifyCustomer = data.customerCreate.customer;
       const customerId = shopifyCustomer.id.split('/').pop();
@@ -104,10 +102,8 @@ const createCustomer = async (req, res) => {
         name: name,
       };
 
-      // Save customer to database
       const createdCustomer = await db.Customers.create(customer);
 
-      // Handle addresses
       const createdAddresses = [];
       for (const shopifyAddress of shopifyCustomer.addresses) {
         const addressId = shopifyAddress.id.split('/').pop();
@@ -268,7 +264,7 @@ const createCustomer = async (req, res) => {
 //         customer_id: updatedCustomer.customer_id,
 //         address_id: address.address_id || null,  
 //       };
-      
+
 //       if (address.address_id) {
 //         console.log('Updating existing address:', addressInput);
 //         await db.Addresses.update(addressInput, {
@@ -309,22 +305,18 @@ const updateCustomer = async (req, res) => {
       });
     }
 
-    const { first_name = '', last_name = '', email = '', phone = '', addresses = [] } = req.body.customer;
+    let { first_name = '', last_name = '', email = '', phone = '', addresses = [] } = req.body.customer;
 
-    if (!Array.isArray(addresses) || addresses.length !== 1) {
-      return res.status(400).json({
-        message: 'You should provide exactly one address to update',
-      });
+    const updatedAddress = addresses[0] || {};
+    const addressIdToUpdate = updatedAddress.id || null;
+
+    const whereCondition = { customer_id: customerId };
+    if (addressIdToUpdate) {
+      whereCondition.id = { [Op.not]: addressIdToUpdate };
     }
 
-    const updatedAddress = addresses[0]; 
-    const addressIdToUpdate = updatedAddress.id; 
-
     const existingAddresses = await db.Addresses.findAll({
-      where: {
-        customer_id: customerId,
-        id: { [Op.not]: addressIdToUpdate }, 
-      },
+      where: whereCondition,
     });
 
     console.log('existingAddresses:', existingAddresses);
@@ -337,21 +329,24 @@ const updateCustomer = async (req, res) => {
       country: dbAddress.country,
       zip: dbAddress.zip,
     }));
-    
+
     console.log('addressInputsFromDB:', addressInputsFromDB);
 
-    const addressInputForUpdate = {
+    const incomingAddress = addresses.map((updatedAddress) => ({
       address1: updatedAddress.line1 || '',
       address2: updatedAddress.line2 || '',
       city: updatedAddress.city || '',
       province: updatedAddress.state || '',
       country: updatedAddress.country || '',
       zip: updatedAddress.zip || '',
-    };
+    }));
 
-    console.log('addressInputForUpdate:', addressInputForUpdate);
-    
-    const allAddressInputs = [...addressInputsFromDB, addressInputForUpdate];
+    console.log('incomingAddress:', incomingAddress);
+
+    allAddressInputs = [...addressInputsFromDB, ...incomingAddress];
+
+    console.log('allAddressInputs:', allAddressInputs);
+    // console.log(hi);
 
     const customerUpdateMutation = `
       mutation customerUpdate($input: CustomerInput!) {
@@ -380,15 +375,30 @@ const updateCustomer = async (req, res) => {
       }
     `;
 
+    const inputData = {
+      id: `gid://shopify/Customer/${customerId}`,
+      addresses: allAddressInputs
+    }
+
+    if (first_name || last_name || email || phone) {
+      inputData.firstName = first_name;
+      inputData.lastName = last_name;
+      inputData.email = email;
+      inputData.phone = phone;
+    } else {
+
+      const customerDetails = await db.Customers.findOne({
+        where: { customer_id: customerId }
+      });
+
+      inputData.firstName = customerDetails.first_name;
+      inputData.lastName = customerDetails.last_name;
+      inputData.email = customerDetails.email;
+      inputData.phone = customerDetails.phone;
+    }
+
     const variables = {
-      input: {
-        id: `gid://shopify/Customer/${customerId}`, 
-        firstName: first_name,
-        lastName: last_name,
-        email: email,
-        phone: phone,
-        addresses: allAddressInputs,
-      },
+      input: inputData,
     };
 
     const client = shopifyGraphQLClient(name, accessToken);
@@ -424,6 +434,14 @@ const updateCustomer = async (req, res) => {
       store_id: id,
       name: name,
     };
+    db.Customers.update({
+      first_name: updatedCustomer.first_name,
+      last_name: updatedCustomer.last_name,
+      email: updatedCustomer.email,
+      phone: updatedCustomer.phone,
+    }, {
+      where: { customer_id: updatedCustomer.customer_id },
+    });
 
     await db.Addresses.destroy({
       where: { customer_id: updatedCustomer.customer_id },
@@ -432,7 +450,7 @@ const updateCustomer = async (req, res) => {
     const shopifyAddresses = shopifyCustomer.addresses;
     for (const shopifyAddress of shopifyAddresses) {
       const addressId = parseInt(shopifyAddress.id.split('/').pop(), 10);
-      
+
       const addressInput = {
         line1: shopifyAddress.address1,
         line2: shopifyAddress.address2,
@@ -443,6 +461,7 @@ const updateCustomer = async (req, res) => {
         customer_id: updatedCustomer.customer_id,
         address_id: addressId,
       };
+
 
       await db.Addresses.create(addressInput);
     }
@@ -457,7 +476,6 @@ const updateCustomer = async (req, res) => {
     return res.status(500).json({ message: 'An error occurred while updating the customer and addresses', error: error.message });
   }
 };
-
 
 
 

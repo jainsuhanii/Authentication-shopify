@@ -7,7 +7,7 @@ const token = async (req, res, next) => {
   const payload = {
     shop: shop
   };
-  const token = jwt.sign(payload, secretKey, { expiresIn: '1h' })
+  const token = jwt.sign(payload, secretKey, { expiresIn: '24h' })
   res.status(200).json({ token })
 };
 

@@ -38,7 +38,7 @@ module.exports = (sequelize) => {
             allowNull: true
         },
         tags: {
-            type: Sequelize.TEXT,
+            type: Sequelize.STRING,
             allowNull: true
         },
         createdAt: {

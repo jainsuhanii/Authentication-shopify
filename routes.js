@@ -6,7 +6,7 @@ const { install, redirect } = require('./controllers/authController');
 
 const { createCustomer, updateCustomer, deleteCustomer, getAllCustomers } = require('./controllers/customerController');
 const { createAddress, updateAddress, deleteAddress, getAllAddresses } = require('./controllers/addressController');
-const { createProduct, updateProduct, deleteProduct, getAllProducts } = require('./controllers/productController');
+const { createProduct, updateProduct, getAllProducts } = require('./controllers/productController');
 const { createOrder, cancelOrder, getOrder } = require('./controllers/orderController');
 const { refundOrder, calculateRefund } = require('./controllers/refundController');
 const { createTransaction } = require('./controllers/transactionController');
@@ -32,13 +32,15 @@ router.get('/customers', verifyJwt, getAllCustomers);
 router.get('/addresses', verifyJwt, getAllAddresses);
 router.get('/products', verifyJwt, getAllProducts);
 
-router.delete('/products/:product_id', verifyJwt, deleteProduct);
+// router.delete('/products/:product_id', verifyJwt, deleteProduct);
 router.delete('/customers/:customer_id', verifyJwt, deleteCustomer);
 router.delete('/customers/:customer_id/:address_id',verifyJwt, deleteAddress);
 
+// router.post('/hello',cre)
 router.post('/order', verifyJwt, createOrder);
 router.post('/order/:id', verifyJwt, cancelOrder);
 router.get('/order/:id', verifyJwt, getOrder);
+
 
 
 router.post('/transaction/:id', verifyJwt, createTransaction);

@@ -18,7 +18,7 @@ module.exports = (sequelize) => {
       comment: "Foreign key mapping to the product's primary key 'id'."
     },
     variant_id: {
-      type: Sequelize.BIGINT,
+      type: Sequelize.STRING,
       allowNull: false,
       comment: "ID of the variant in Shopify.",
       unique: "variant_id",

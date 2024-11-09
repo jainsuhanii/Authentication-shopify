@@ -18,8 +18,12 @@ module.exports = (sequelize) => {
       comment: "Foreign key mapping to the product's primary key 'id'."
     },
     option_id: {
-      type: Sequelize.BIGINT,
+      type: Sequelize.STRING,
       allowNull: false
+    },
+    value_id:{
+        type: Sequelize.STRING,
+        allowNull: false
     },
     name: {
         type: Sequelize.STRING,
@@ -30,7 +34,7 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     values: {
-      type: Sequelize.TEXT,
+      type: Sequelize.JSON,
       allowNull: true,
       comment: "JSON array of option values (like sizes or colors)."
     },
